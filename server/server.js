@@ -19,7 +19,7 @@ app.post('/convert',(req,res) =>{
 });
 
 app.get('/',(req,res) =>{
-	res.status(200).send('GET');
+	res.status(200).send({status:'OK'});
 });
 
 

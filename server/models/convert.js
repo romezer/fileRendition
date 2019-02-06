@@ -457,6 +457,7 @@
 			 	if(err){console.log(err);return reject('getFileFromSF ' + err)}
 				 	var fileOut  = fs.createWriteStream('uploads/' + res.records[0].Title + '.' + res.records[0].FileExtension);
 				 	conn.sobject('ContentVersion').record(res.records[0].Id).blob('VersionData').pipe(fileOut);
+				 	console.log(res.records[0].Title + '.' + res.records[0].FileExtension);
 				 	resolve(res.records[0].Title + '.' + res.records[0].FileExtension);
 			 	});
 			});

@@ -11,6 +11,10 @@
 		var config;
 		var storageApi;
 		var pdfApi;
+		// const config = {'appSid':'34613236-43e7-433a-b6d4-c8180930be7b','apiKey':'b233bab04dd42804b609510ad3f067aa' , 'debug' : true};
+		// var storageApi = new StorageApi(config);
+		// var pdfApi = new PdfApi(config);
+
 		var pagesObj = [];
 		var templateArr= [];
 		var pageIdToTeplateMap = [];
@@ -21,14 +25,12 @@
 		module.exports = {
 
 		run: function(filename, fileextension, documentState, contentversionid, url, token, objId, recordType, appSid, appKey){
-				 	 config = {};
-					 config = {'appSid':appSid,'apiKey':appKey , 'debug' : true};
-					 storageApi =  new StorageApi(config);
-					 pdfApi = new PdfApi(config);
-					 
-					 
+				console.log('Run');
 				return new Promise((resolve,reject) =>{
-					
+					 config = {};
+					 config = {'appSid':appSid,'apiKey':appKey , 'debug' : true};
+					 storageApi = new StorageApi(config);
+					 pdfApi = new PdfApi(config);
 					 totalPages = 0;
 					 pagesObj = [];
 					 templateArr= [];
@@ -124,7 +126,7 @@
 							storageApi.PutCreate(filename + '_sign.pdf', versionId=null, storage=null, file= 'uploads/' + filename + '_sign.pdf' , function(responseMessage) {
 								if(responseMessage.code === 401){
 									var err = 'Upload error';
-										return reject(JSON.stringify(responseMessage));
+										return reject(err);
 								}
 								resolve('File uploaded to aspose');
 							});  
@@ -142,8 +144,8 @@
 							
 							storageApi.PutCreate(name, versionId=null, storage=null, file= 'uploads/' + name , function(responseMessage) {
 								if(responseMessage.code === 401){
-									console.log('responseMessage: ' + JSON.stringify(responseMessage))
-										return reject('uploadFile ' + JSON.stringify(responseMessage));
+									var err = 'Upload error';
+										return reject('uploadFile ' + err);
 								}
 									resolve('File uploaded to aspose');
 								
@@ -417,7 +419,7 @@
 				  	return reject('deleteFilesFreomServer ' + err);
 				  }
 				});
-				fs.unlinkSync('uploads/' + fileName + '.pdf');
+				// fs.unlinkSync('uploads/' + fileName + '.pdf');
 				
 
 				fs.unlink('uploads/' + fileName + '_sign.pdf' , (err) => {
@@ -773,7 +775,109 @@
 			});
 		},
 
+		uploadFileAws: function(token, uri, contentversionid){
+
+			return new Promise((resolve, reject) => {
+				var options = {
+					  method: 'GET',
+				  	  url: uri + `/services/apexrest/CompSuite/getFile?contentVersionId=${contentversionid}`,
+					  headers: {
+					    'Content-Type': 'application/json',
+					    'Authorization': 'Bearer ' + token,
+					    'Access-Control-Allow-Origin': '*'
+					  }
+					};
+
+				function callback(error, response, body) {
+				 if (!error && response.statusCode == 200) {
+				 	var body = Buffer.from(body, 'base64');
+				 	console.log('body typeof: ' + typeof body);
+				 	var s3obj = new AWS.S3({params: {Bucket: 'dotbucket', Key: 'Text.docx'}});
+				 	s3obj.upload({Body: body})
+					  .on('httpUploadProgress', function(evt) { console.log(evt); })
+					  .send(function(err, data) { console.log(err, data) });
+
+		    		console.log('Signature page saved');
+		    		resolve('Signature page saved');
+				 }else{
+				 	return reject('getSignaturePage ' + error);
+				 }
+			}
+			request(options, callback);
+			 	});
+	},
+
 		
+
+		uploadSignaturePageToS3: function(token, objid, recordType, documentState, pageSize, filename, uri){
+			return new Promise((resolve, reject) => {
+			  var options = {
+			  method: 'GET',
+		  	  url: uri + `/services/apexrest/CompSuite/getSignaturePage?recordType=${recordType}&objid=${objid}
+		  	  &pageSize=${pageSize}&documentState=${documentState}`,
+			  headers: {
+			    'Content-Type': 'application/json',
+			    'Authorization': 'Bearer ' + token,
+			    'Access-Control-Allow-Origin': '*'
+			  }
+			};
+
+			function callback(error, response, body) {
+				 if (!error && response.statusCode == 200) {
+				 	var body = Buffer.from(body, 'base64');
+				 	console.log('body typeof: ' + typeof body);
+				 	var s3obj = new AWS.S3({params: {Bucket: 'dotbucket', Key: 'sign.pdf'}});
+				 	s3obj.upload({Body: body})
+					  .on('httpUploadProgress', function(evt) { console.log(evt); })
+					  .send(function(err, data) { console.log(err, data) });
+
+		    		console.log('Signature page saved');
+		    		resolve('Signature page saved');
+				 }else{
+				 	return reject('getSignaturePage ' + error);
+				 }
+			}
+			request(options, callback);
+			});
+		},
+
+		uploadFromS3ToLocalDisk: function(){
+			return new Promise((resolve, reject) => {
+
+				// var params = {
+				//   Bucket: 'dotbucket',
+				//   Key: 'Text.docx'
+				// };
+
+				// var s3 = new AWS.S3();
+				// s3.getObject(params).createReadStream().on('error', function(err){
+				//     console.log(err);
+				// }).pipe(file);
+				try{
+					var params = {
+					  Bucket: 'dotbucket',
+					  Key: 'Text.docx'
+					};
+					var s3 = new AWS.S3();
+					s3.getObject(params, function(err, data) {
+				    // Handle any error and exit
+				    if (err)
+				        return err;
+
+
+					  let objectData = data.Body; 
+					  fs.writeFileSync('uploads/s3file.docx', objectData,'base64');
+					});
+
+				resolve('File uploaded');
+
+				}catch(e){
+					return reject('File uploaded error ' + e);
+				}
+				
+
+			});
+		}
 
 
 
